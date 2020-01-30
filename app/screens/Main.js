@@ -1,8 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View, StatusBar, TextInput, KeyboardAvoidingView } from 'react-native'
+import { StyleSheet, Dimensions, Text, View, StatusBar, TextInput, KeyboardAvoidingView } from 'react-native'
 import { LinearGradient } from 'expo';
 import MapView, {Polyline} from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import MapViewDirections from 'react-native-maps-directions';
+
+const { width, height } = Dimensions.get('window');
 
 export default class Main extends React.Component {
   constructor(props) {
@@ -14,34 +17,32 @@ export default class Main extends React.Component {
         longitude: -122.4324,
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
-      }
+      },
+      destination: {},
+      currentLocation: {},
     }
+    this.mapView = null;
   }
 
   componentDidMount() {
-
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        console.log(position);
+        this.setState({currentLocation: position})
+      },
+      error => Alert.alert(error.message)
+    )
   }
-
-  // componentDidMount() {
-  //   this.watchId = navigator.geolocation.watchLocation(
-  //     (position) => {
-  //       this.setState({
-  //         latitude: position.coords.latitude,
-  //         longitude: position.coords.longitude,
-  //       })
-  //     },
-  //     (error) => {
-  //       this.setState({error: error.message})
-  //     },
-  //     {}
-  //   )
-  // }
 
   onRegionChange(region) {
     this.setState({ region })
   }
 
   onChangeText(text) {
+
+  }
+
+  onPress(data, details) {
 
   }
 
@@ -52,27 +53,28 @@ export default class Main extends React.Component {
           initialRegion={this.state.region}
           onRegionChange={this.onRegionChange.bind(this)}
           showsUserLocation={true}
-          style={styles.map}>
-          <Polyline
-                coordinates={[
-                  { latitude: 37.8025259, longitude: -122.4351431 },
-                  { latitude: 37.7896386, longitude: -122.421646 },
-                  { latitude: 37.7665248, longitude: -122.4161628 },
-                  { latitude: 37.7734153, longitude: -122.4577787 },
-                  { latitude: 37.7948605, longitude: -122.4596065 },
-                  { latitude: 37.8025259, longitude: -122.4351431 }
-                ]}
-                strokeColor="#000" // fallback for when `strokeColors` is not supported by the map-provider
-                strokeColors={[
-                  '#7F0000',
-                  '#00000000', // no color, creates a "long" gradient between the previous and next coordinate
-                  '#B24112',
-                  '#E5845C',
-                  '#238C23',
-                  '#7F0000'
-                ]}
-                strokeWidth={6}
-          />
+          style={styles.map}
+          ref={c => this.mapView = c}>
+          <MapViewDirections
+            origin={this.state.currentLocation.coords}
+            destination={this.state.destination}
+            apikey="AIzaSyBR8c4Z0ZZUk7d7ZNIR_acbwKBxo5WI9jA"
+            mode="TRANSIT"
+            strokeWidth={3}
+            onStart={(params) => {
+              console.log(params);
+            }}
+            onReady={result => {
+              console.log(result);
+              this.mapView.fitToCoordinates(result.coordinates, {
+                edgePadding: {
+                  right: (width / 20),
+                  bottom: (height / 20),
+                  left: (width / 20),
+                  top: (height / 20),
+                }
+              })
+            }}></MapViewDirections>
         </MapView>
         <GooglePlacesAutocomplete
           placeholder="Search"
@@ -80,7 +82,11 @@ export default class Main extends React.Component {
           renderDescription={row => row.description}
           onPress={(data, details = null) => {
             console.log(data, details);
-            
+            this.setState({destination: {
+              "latitude": details.geometry.location.lat,
+              "longitude": details.geometry.location.lng
+            }})
+            console.log(details.geometry.location)
           }}
           query={{
             key: "AIzaSyBR8c4Z0ZZUk7d7ZNIR_acbwKBxo5WI9jA",

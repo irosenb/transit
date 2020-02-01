@@ -1,13 +1,16 @@
 import React from 'react';
 import { StyleSheet, Dimensions, Text, View, StatusBar, TextInput, KeyboardAvoidingView } from 'react-native'
 import { LinearGradient } from 'expo';
-import MapView, {Polyline} from 'react-native-maps';
+import { Button } from 'react-native-elements';
+import MapView, {Polyline, Geojson} from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import MapViewDirections from 'react-native-maps-directions';
-
+import { createAppContainer } from 'react-navigation';
+import { createStackNavigator } from 'react-navigation-stack';
+// import Geojson from 'react-native-geojson';
 const { width, height } = Dimensions.get('window');
 
-export default class Main extends React.Component {
+class Main extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -20,8 +23,11 @@ export default class Main extends React.Component {
       },
       destination: {},
       currentLocation: {},
+      muni: {},
+      coords: []
     }
     this.mapView = null;
+    this.onPress = this.onPress.bind(this);
   }
 
   componentDidMount() {
@@ -32,6 +38,8 @@ export default class Main extends React.Component {
       },
       error => Alert.alert(error.message)
     )
+
+    this.fetchMuniRoutes();
   }
 
   onRegionChange(region) {
@@ -42,11 +50,82 @@ export default class Main extends React.Component {
 
   }
 
-  onPress(data, details) {
+  fetchMuniRoutes() {
+    const that = this;
+    fetch("https://transit.land/api/v1/routes.geojson?operated_by=o-9q8y-sfmta&per_page=false")
+      .then((response) => response.json())
+      .then((responseJson) => {
+        let coordinates = responseJson['features'][0]['geometry']['coordinates'][0]
+        var coords = [];
+        coordinates.forEach(element => {
+          coords.push({longitude: element[0], latitude: element[1]})
+        });
+        // console.log(coords);
+        const newCoordsArray = [...this.state.coords, coords];
+        that.setState({coords: newCoordsArray});
+        console.log(this.state.coords);
+      })
+  }
 
+  onPress(data, details) {
+    console.log("works!");
+    var origin = this.state.currentLocation.coords.latitude + "," + this.state.currentLocation.coords.longitude;
+    var key = "AIzaSyBR8c4Z0ZZUk7d7ZNIR_acbwKBxo5WI9jA"
+    var destination = this.state.destination.latitude + "," + this.state.destination.longitude;
+    var request = "https://maps.googleapis.com/maps/api/directions/json?origin=" + origin + "&destination=" + destination + "&key=" + key + "&mode=transit"
+    console.log(request)
+    fetch(request, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
+      .then((response) => response.json())
+      .then((responseJson) => {
+        console.log(responseJson);
+      })
+      .catch((error) => {
+        console.log(error);
+      })
+  }
+
+  static navigationOptions = ({navigation}) => {
+    return {
+      headerLeft: () => (
+        <Button
+          title="Search"
+          onPress={() => this.props.navigation.navigate('Search')}
+          />
+      )
+    }
   }
 
   render() {
+    const destinationPicked = this.state.destination.latitude !== undefined
+
+    const alcatraz = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Point',
+            coordinates: [-122.42305755615234, 37.82687023785448],
+          }
+        }
+      ]
+    };
+
+    let directions
+
+    if (destinationPicked) {
+      directions = null
+    } else {
+      directions = null
+    }
+
+
     return (
       <View style={styles.container}>
         <MapView
@@ -55,63 +134,43 @@ export default class Main extends React.Component {
           showsUserLocation={true}
           style={styles.map}
           ref={c => this.mapView = c}>
-          <MapViewDirections
-            origin={this.state.currentLocation.coords}
-            destination={this.state.destination}
-            apikey="AIzaSyBR8c4Z0ZZUk7d7ZNIR_acbwKBxo5WI9jA"
-            mode="TRANSIT"
-            strokeWidth={3}
-            onStart={(params) => {
-              console.log(params);
-            }}
-            onReady={result => {
-              console.log(result);
-              this.mapView.fitToCoordinates(result.coordinates, {
-                edgePadding: {
-                  right: (width / 20),
-                  bottom: (height / 20),
-                  left: (width / 20),
-                  top: (height / 20),
-                }
-              })
-            }}></MapViewDirections>
+          {directions}
+          {this.state.coords.map((coords, index) =>
+            <Polyline
+              index={index}
+              coordinates={coords}
+              strokeColor="#000"
+              strokeWidth={5}/>
+          )}
         </MapView>
-        <GooglePlacesAutocomplete
-          placeholder="Search"
-          fetchDetails={true}
-          renderDescription={row => row.description}
-          onPress={(data, details = null) => {
-            console.log(data, details);
-            this.setState({destination: {
-              "latitude": details.geometry.location.lat,
-              "longitude": details.geometry.location.lng
-            }})
-            console.log(details.geometry.location)
-          }}
-          query={{
-            key: "AIzaSyBR8c4Z0ZZUk7d7ZNIR_acbwKBxo5WI9jA",
-            language: 'en',
-          }}
-          styles={{
-            textInputContainer: {
-              width: '100%',
-            },
-            description: {
-              fontWeight: 'bold'
-            },
-            listView: {
+        <View
+          style = {{
+            position: 'absolute',
+            bottom: 30,
+
+          }}>
+          <Button
+            title="Search"
+            onPress={() =>
+              this.props.navigation.navigate('Search')
             }
-          }}
-        />
+            buttonStyle={styles.search}
+            titleStyle={{
+              color: 'black'
+            }}
+            ></Button>
+        </View>
       </View>
     );
   }
 }
 
+export default Main;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
   },
   latlng: {
     position: 'absolute',
@@ -120,10 +179,12 @@ const styles = StyleSheet.create({
   },
   search: {
     backgroundColor: "#fff",
-    width: "50%",
-    height: 50,
-    bottom: 350,
+    color: "black",
+    width: "100%",
+    height: 70,
+    bottom: 30,
     borderWidth: 6,
+    alignItems: 'center',
     borderColor: "#897AD4",
     borderRadius: 6,
   },

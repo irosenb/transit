@@ -1,18 +1,13 @@
 import React from 'react';
 import { StyleSheet, TextInput } from 'react-native';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
-const Input = ({ inputValue, onChangeText, onDoneAddItem }) => (
-  <TextInput
-    style={styles.input}
-    value={inputValue}
-    onChangeText={onChangeText}
-    placeholder="Type here to add a note"
-    multiline={true}
-    autoCapitalize="sentences"
-    selectionColor={'white'}
-    maxLength={30}
-    returnKeyType="done"
-    autoCorrect={false}
-    blurOnSubmit={true}
-    onSubmitEditing={onDoneAddItem}
-)
+export default class Input extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      destination: {},
+      currentLocation: {},
+    }
+  }
+}

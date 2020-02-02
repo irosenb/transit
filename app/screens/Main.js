@@ -28,6 +28,8 @@ class Main extends React.Component {
     }
     this.mapView = null;
     this.onPress = this.onPress.bind(this);
+    this.onRoutePress = this.onRoutePress.bind(this);
+    this.search = this.search.bind(this);
   }
 
   componentDidMount() {
@@ -55,16 +57,28 @@ class Main extends React.Component {
     fetch("https://transit.land/api/v1/routes.geojson?operated_by=o-9q8y-sfmta&per_page=false")
       .then((response) => response.json())
       .then((responseJson) => {
-        let coordinates = responseJson['features'][0]['geometry']['coordinates'][0]
-        var coords = [];
-        coordinates.forEach(element => {
-          coords.push({longitude: element[0], latitude: element[1]})
+        let muni_routes = responseJson['features']
+        var coordinates = [];
+        muni_routes.forEach(element => {
+          element['geometry']['coordinates'].forEach(latlng => {
+            var coords = [];
+            latlng.forEach((item, i) => {
+              coords.push({longitude: item[0], latitude: item[1]})
+            });
+            coordinates.push(coords);
+          })
         });
-        // console.log(coords);
-        const newCoordsArray = [...this.state.coords, coords];
-        that.setState({coords: newCoordsArray});
-        console.log(this.state.coords);
+        that.setState({coords: coordinates, muni: muni_routes});
       })
+  }
+
+  onRoutePress(index) {
+    let feature = this.state.muni_routes
+    console.log(feature);
+  }
+
+  search(data) {
+    console.log(this.props.navigation.state.params.location);
   }
 
   onPress(data, details) {
@@ -94,7 +108,10 @@ class Main extends React.Component {
       headerLeft: () => (
         <Button
           title="Search"
-          onPress={() => this.props.navigation.navigate('Search')}
+          onPress={() => this.props.navigation.navigate('Search', {
+              onGoBack: () => this.search()
+            })
+          }
           />
       )
     }
@@ -102,29 +119,6 @@ class Main extends React.Component {
 
   render() {
     const destinationPicked = this.state.destination.latitude !== undefined
-
-    const alcatraz = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'Point',
-            coordinates: [-122.42305755615234, 37.82687023785448],
-          }
-        }
-      ]
-    };
-
-    let directions
-
-    if (destinationPicked) {
-      directions = null
-    } else {
-      directions = null
-    }
-
 
     return (
       <View style={styles.container}>
@@ -134,13 +128,15 @@ class Main extends React.Component {
           showsUserLocation={true}
           style={styles.map}
           ref={c => this.mapView = c}>
-          {directions}
           {this.state.coords.map((coords, index) =>
             <Polyline
               index={index}
               coordinates={coords}
               strokeColor="#000"
-              strokeWidth={5}/>
+              strokeWidth={3}
+              onPress={() =>
+                this.onRoutePress(index)
+              }/>
           )}
         </MapView>
         <View

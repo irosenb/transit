@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Dimensions, Text, View, StatusBar, TextInput, KeyboardAvoidingView } from 'react-native'
+import { StyleSheet, Dimensions, Text, View, StatusBar, FlatList, TextInput, KeyboardAvoidingView } from 'react-native'
 import { LinearGradient } from 'expo';
 import { Button } from 'react-native-elements';
 import MapView, {Polyline, Geojson} from 'react-native-maps';
@@ -24,7 +24,10 @@ class Main extends React.Component {
       destination: {},
       currentLocation: {},
       muni: {},
-      coords: []
+      coords: [],
+      directions: [],
+      stops: [],
+      route_name: '',
     }
     this.mapView = null;
     this.onPress = this.onPress.bind(this);
@@ -35,7 +38,6 @@ class Main extends React.Component {
   componentDidMount() {
     navigator.geolocation.getCurrentPosition(
       position => {
-        console.log(position);
         this.setState({currentLocation: position})
       },
       error => Alert.alert(error.message)
@@ -57,13 +59,13 @@ class Main extends React.Component {
     fetch("https://transit.land/api/v1/routes.geojson?operated_by=o-9q8y-sfmta&per_page=false")
       .then((response) => response.json())
       .then((responseJson) => {
-        let muni_routes = responseJson['features']
+        let muni_routes = responseJson['features'];
         var coordinates = [];
         muni_routes.forEach(element => {
           element['geometry']['coordinates'].forEach(latlng => {
             var coords = [];
             latlng.forEach((item, i) => {
-              coords.push({longitude: item[0], latitude: item[1]})
+              coords.push({longitude: item[0], latitude: item[1]});
             });
             coordinates.push(coords);
           })
@@ -72,20 +74,16 @@ class Main extends React.Component {
       })
   }
 
-  onRoutePress(index) {
-    let feature = this.state.muni_routes
-    console.log(feature);
+  onRoutePress = () => {
+
   }
 
   search(data) {
-    console.log(this.props.navigation.state.params.location);
-  }
+    console.log(data);
 
-  onPress(data, details) {
-    console.log("works!");
     var origin = this.state.currentLocation.coords.latitude + "," + this.state.currentLocation.coords.longitude;
     var key = "AIzaSyBR8c4Z0ZZUk7d7ZNIR_acbwKBxo5WI9jA"
-    var destination = this.state.destination.latitude + "," + this.state.destination.longitude;
+    var destination = data.geometry.location.lat + "," + data.geometry.location.lng;
     var request = "https://maps.googleapis.com/maps/api/directions/json?origin=" + origin + "&destination=" + destination + "&key=" + key + "&mode=transit"
     console.log(request)
     fetch(request, {
@@ -97,24 +95,49 @@ class Main extends React.Component {
       .then((response) => response.json())
       .then((responseJson) => {
         console.log(responseJson);
+        let route = responseJson['routes'][0]
+        let legs = route['legs']
+
+        legs.forEach((leg, i) => {
+          let steps = leg['steps']
+          steps.forEach((step, i) => {
+            console.log(step);
+            // let points = JSON.parse(step.polyline.points)
+            // console.log(points);
+            // step['steps'].forEach((step_2, i) => {
+            //   let polyline = step_2['polyline'];
+            //   this.setState({polyline: {polyline}});
+            //
+            // });
+
+          });
+
+        });
+
+        let steps = route['']
+        let duration = route['legs']
       })
       .catch((error) => {
         console.log(error);
       })
   }
 
-  static navigationOptions = ({navigation}) => {
-    return {
-      headerLeft: () => (
-        <Button
-          title="Search"
-          onPress={() => this.props.navigation.navigate('Search', {
-              onGoBack: () => this.search()
-            })
-          }
-          />
-      )
-    }
+  updateData() {
+
+  }
+
+  onPress(index) {
+    let feature = this.state.muni[index]
+    console.log(feature);
+    var stops = [];
+
+    feature['properties']['stops_served_by_route'].forEach((item, i) => {
+      stops.push({key: item.stop_name})
+    });
+
+    var route_name = feature['properties']['name']
+    console.log(route_name);
+    this.setState({stops: stops, route_name: route_name})
   }
 
   render() {
@@ -135,7 +158,7 @@ class Main extends React.Component {
               strokeColor="#000"
               strokeWidth={3}
               onPress={() =>
-                this.onRoutePress(index)
+                this.onPress(index)
               }/>
           )}
         </MapView>
@@ -148,13 +171,18 @@ class Main extends React.Component {
           <Button
             title="Search"
             onPress={() =>
-              this.props.navigation.navigate('Search')
+              this.props.navigation.navigate('Search', {
+                  onGoBack: (details) => this.search(details),
+                })
             }
             buttonStyle={styles.search}
             titleStyle={{
               color: 'black'
             }}
             ></Button>
+          <View style={styles.stopList}>
+            <Text style={styles.route_name}>{this.state.route_name}</Text>
+          </View>
         </View>
       </View>
     );
@@ -185,6 +213,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   map: {
-      flex: 1,
-    }
+    flex: 1,
+  },
+  stopList: {
+    // height: 300,
+    backgroundColor: '#000'
+  },
+  stop: {
+    color: '#fff',
+    height: 20,
+  },
+  route_name: {
+    color: 'red'
+  }
 });

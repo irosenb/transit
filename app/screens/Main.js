@@ -9,6 +9,7 @@ import { createAppContainer } from 'react-navigation';
 import { createStackNavigator } from 'react-navigation-stack';
 // import Geojson from 'react-native-geojson';
 const { width, height } = Dimensions.get('window');
+const polyline = require('@mapbox/polyline');
 
 class Main extends React.Component {
   constructor(props) {
@@ -43,7 +44,7 @@ class Main extends React.Component {
       error => Alert.alert(error.message)
     )
 
-    this.fetchMuniRoutes();
+    // this.fetchMuniRoutes();
   }
 
   onRegionChange(region) {
@@ -98,21 +99,30 @@ class Main extends React.Component {
         let route = responseJson['routes'][0]
         let legs = route['legs']
 
-        legs.forEach((leg, i) => {
-          let steps = leg['steps']
-          steps.forEach((step, i) => {
-            console.log(step);
-            // let points = JSON.parse(step.polyline.points)
-            // console.log(points);
-            // step['steps'].forEach((step_2, i) => {
-            //   let polyline = step_2['polyline'];
-            //   this.setState({polyline: {polyline}});
-            //
-            // });
-
-          });
-
+        let lines = polyline.decode(route['overview_polyline']['points'])
+        console.log(lines);
+        var points = [];
+        lines.forEach((point, i) => {
+          points.push({latitude: point[0], longitude: point[1]})
         });
+        console.log(points);
+        this.setState({directions: points})
+
+        // legs.forEach((leg, i) => {
+        //   let steps = leg['steps']
+        //   steps.forEach((step, i) => {
+        //     console.log(step);
+        //     // let points = JSON.parse(step.polyline.points)
+        //     // console.log(points);
+        //     // step['steps'].forEach((step_2, i) => {
+        //     //   let polyline = step_2['polyline'];
+        //     //   this.setState({polyline: {polyline}});
+        //     //
+        //     // });
+        //
+        //   });
+        //
+        // });
 
         let steps = route['']
         let duration = route['legs']
@@ -161,6 +171,10 @@ class Main extends React.Component {
                 this.onPress(index)
               }/>
           )}
+          <Polyline
+            index={400}
+            coordinates={this.state.directions}
+            />
         </MapView>
         <View
           style = {{
